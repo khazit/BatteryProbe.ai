@@ -1,0 +1,20 @@
+name: CI Pipeline
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Python
+        uses: actions/setup-python@v1.2.0
+        with:
+          python-version: 3.7
+      - name: Install poetry
+        uses: dschep/install-poetry-action@v1.3
+      - name: Install dependencies
+        run: ~/.poetry/bin/poetry install
+      - name: Run pylint
+        run: pylint utils/merge_tables.py 
