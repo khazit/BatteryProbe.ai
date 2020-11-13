@@ -13,8 +13,8 @@ jobs:
         with:
           python-version: 3.7
       - name: Install poetry
-        uses: dschep/install-poetry-action@v1.3
+        run: pip install poetry
       - name: Install dependencies
-        run: ~/.poetry/bin/poetry install --no-dev && poetry add pylint
+        run: poetry install --no-dev && poetry add pylint
       - name: Run pylint
-        run: pylint utils/merge_tables.py 
+        run: poetry run pylint utils/merge_tables.py 
