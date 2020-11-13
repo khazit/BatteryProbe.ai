@@ -15,6 +15,6 @@ jobs:
       - name: Install poetry
         uses: dschep/install-poetry-action@v1.3
       - name: Install dependencies
-        run: ~/.poetry/bin/poetry install --no-dev
+        run: ~/.poetry/bin/poetry install --no-dev && poetry add pylint
       - name: Run pylint
         run: pylint utils/merge_tables.py 
