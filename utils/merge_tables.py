@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 
 def read_feature(data_dir, feature_name):
-    """Read a specific CSV file given a data directory and a column name."""
+    """Read a specific CSV file given a data directory and a feature name."""
     # Read csv
     data = pd.read_csv(f"{data_dir}/{feature_name}.csv", low_memory=False)
 
