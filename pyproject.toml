@@ -17,6 +17,7 @@ seaborn = "^0.11.0"
 [tool.poetry.dev-dependencies]
 jupyter = "^1.0.0"
 pylint = "^2.6.0"
+tensorboard = "^2.4.0"
 
 [build-system]
 requires = ["poetry>=0.12"]
