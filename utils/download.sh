@@ -1,6 +1,6 @@
 #!/bin/bash
 # Usage: ./download.sh [ip] [port]
-
+set -e
 
 # useful variables
 host=$1
@@ -23,5 +23,8 @@ do
     docker run --rm influxdb influx -host $host -port $port -database 'monitoring' -execute 'SELECT * from '"$var" -format csv > $data_dir/$var.csv
 done
 
-echo Summary:
+echo -e "\nSummary:"
 du $data_dir/* -ch
+echo
+
+poetry run python utils/merge_tables.py $data_dir
