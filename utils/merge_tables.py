@@ -52,7 +52,7 @@ if __name__ == "__main__":
             df, how="outer",
             on=["time", "battery_status", "manufacturer", "os", "uuid"],
         )
-        
+
     # Merge "fans_rpm" and "mean_fans_rpm"
     data["fans_rpm"] = data["fans_rpm"].fillna(data["mean_fans_rpm"])
 
