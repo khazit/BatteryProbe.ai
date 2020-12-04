@@ -2,16 +2,10 @@
 
 
 import random
-import logging 
+import logging
 
-import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader
-
-
-MAX_GAP_BETWEEN_SESSIONS = 400  # in seconds
-MIN_NUM_POINTS_PER_SESSION = 10
-MIN_SESSION_DURATION = 600 # in seconds
 
 
 class SessionDataset(Dataset):
@@ -26,25 +20,28 @@ class SessionDataset(Dataset):
         return len(self.sessions)
 
     def __getitem__(self, idx):
-        # Generate random number between 20-50%
+        # Generate random float between 20-50%
         rand = random.uniform(self.lower_bound, self.upper_bound)
-        # Take the breakpoint number
-        breakpoint = int(rand * len(self.sessions[idx]))
+
+        # Take the breakpoint index
+        middlepoint = int(rand * len(self.sessions[idx]))
+
         # Cut into inputs and labels
         data = self.sessions[idx][self.features]
-        inputs = data[:breakpoint]
-        labels = data[breakpoint:]
+        inputs = data[:middlepoint]
+        labels = data[middlepoint:]
         return (inputs.values, labels.values)
 
 
-def extract_sessions(data):
+def extract_sessions(data, params):
     """Extract sessions.
-    
-    Args: 
-        data (pd.DataFrame): data from one unique user (uuid 
+
+    Args:
+        data (pd.DataFrame): data from one unique user (uuid
             should be the same for all rows)
-            
-    Returns: 
+        params (dict): parameters dict
+
+    Returns:
         List of sessions (pd.Dataframes)
     """
     sessions = []
@@ -62,21 +59,20 @@ def extract_sessions(data):
         # A session is ended with a:
         # * battery status change (from discharging to charging for eg)
         # * long enough gap between two consecutive data points
-        for index_sess, row_sess in data[~data.index.isin([index])].iterrows():      
+        for index_sess, row_sess in data[~data.index.isin([index])].iterrows():
             last_index = index_sess
             if row_sess["battery_status_Charging"] != is_charging:
                 break
-            elif row_sess["time"] - epoch > MAX_GAP_BETWEEN_SESSIONS:
+            if row_sess["time"] - epoch > params["max_gap_between_sessions"]:
                 break
-            else:
-                session.append(row_sess)
+            session.append(row_sess)
             epoch = row_sess["time"]
 
         # Remove all rows that were processed
         data = data[data.index > last_index]
         # Add session if it's long enough (w.r.t time and # of points)
-        if (len(session) > MIN_NUM_POINTS_PER_SESSION) and \
-          (session[-1]["time"] - session[0]["time"]) > MIN_SESSION_DURATION:
+        if (len(session) > params["min_num_points_per_session"]) and \
+          (session[-1]["time"] - session[0]["time"]) > params["min_session_duration"]:
             # Add session to list (w/o uuid)
             sessions.append(session)
 
@@ -86,24 +82,39 @@ def extract_sessions(data):
 
 
 def preprocess(data):
-    """"""
+    """Preprocess dataframe."""
+    # Drop points where "charge_now" is nan
+    data = data.dropna(subset=["charge_now"])
+
+    # Keep points where battery is either charging or discharging
     data = data.loc[data["battery_status"].isin(["Charging", "Discharging"])]
-    data.loc[:, "fans_rpm"] = data["fans_rpm"].fillna(data["mean_fans_rpm"])
+
+    # Convert categorical features to one-hot representation
     battery_status = pd.get_dummies(data['battery_status'], prefix='battery_status')
-    os = pd.get_dummies(data['os'], prefix='os')
-    data = pd.concat([data, battery_status, os], axis=1)
-    data = data.drop(['battery_status', 'mean_fans_rpm', 'manufacturer', 'os'], axis = 1) 
+    os_cat = pd.get_dummies(data['os'], prefix='os')
+    data = pd.concat([data, battery_status, os_cat], axis=1)
+
+    # Drop obsolete features
+    data = data.drop(['battery_status', 'mean_fans_rpm', 'manufacturer', 'os'], axis = 1)
+
+    # Sort valus in chronological order
     data = data.sort_values(["time"])
     return data
 
 
 def create_data_loader(data, params):
     """"""
+    # Preprocess dataframe
     data = preprocess(data)
+    logging.info(f"{len(data)} data points")
+
+    # Extract sessions
     sessions_df = []
     for uuid in data["uuid"].unique():
-        subsample = data[data["uuid"] == uuid]    
-        sessions_df += extract_sessions(subsample)
+        subsample = data[data["uuid"] == uuid]
+        sessions_df += extract_sessions(subsample, params)
+    logging.info(f"Extracted {len(sessions_df)} sessions")
+
     dataset = SessionDataset(sessions_df, params)
     dataloader = DataLoader(
         dataset,
