@@ -4,6 +4,7 @@
 import random
 import logging
 
+import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader
 
@@ -93,6 +94,9 @@ def _extract_sessions(data, params):
 
 def _preprocess(data):
     """Preprocess dataframe."""
+    # Dict to store some values that we'll store in disk later
+    artefacts = {}
+
     # Drop points where "charge_now" is nan
     data = data.dropna(subset=["charge_now"])
 
@@ -109,13 +113,47 @@ def _preprocess(data):
 
     # Sort valus in chronological order
     data = data.sort_values(["time"])
-    return data
+
+    # Convert capacity to float
+    data["capacity"] = data["capacity"] / 100
+
+    # Normalize data
+    features_to_normalize = [
+        "cpu_speed",
+        "n_running_threads",
+        "cycle_count",
+        "ram_load",
+        "current_now",
+        "charge_full",
+        "load_average_15",
+        "fans_rpm",
+        "voltage_min_design",
+        "cpu_temp",
+        "battery_temp",
+        "load_average_1",
+        "swap_load",
+        "charge_now",
+        "voltage_now",
+        "load_average_5",
+        "charge_full_design",
+    ]
+    artefacts["normalized_features"] = features_to_normalize
+    artefacts["mean"] = data[features_to_normalize].mean()
+    artefacts["std"] = data[features_to_normalize].std()
+    data[features_to_normalize] = (
+        data[features_to_normalize] - artefacts["mean"]) / artefacts["std"]
+
+    # Convert epoch to sin
+    day = 24*60*60
+    data["epoch_sin_day"] = np.sin(data["time"] * (2 * np.pi / day))
+
+    return data, artefacts
 
 
 def create_data_loader(data, params):
     """Create two (train/val) pytorch data loaders."""
     # Preprocess dataframe
-    data = _preprocess(data)
+    data, _ = _preprocess(data)
     logging.info(f"{len(data)} data points")
 
     # Extract sessions
