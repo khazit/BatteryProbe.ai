@@ -1,4 +1,4 @@
-""""""
+"""Define the input data pipeline."""
 
 
 import random
@@ -9,11 +9,21 @@ from torch.utils.data import Dataset, DataLoader
 
 
 class SessionDataset(Dataset):
-    """"""
+    """Session dataset.
+
+    Attributes:
+        lower_bound (float): Lower bound when splitting the labels from the inputs.
+        upper_bound (float): Upper bound when splitting the labels from the inputs.
+        features (list): List of features to use.
+
+    Args:
+        sessions (list): List of pd.DataFrame sessions.
+        params (dict): Parameters dict
+    """
     def __init__(self, sessions, params):
         self.sessions = sessions
-        self.lower_bound = params["lower_bound"]
-        self.upper_bound = params["upper_bound"]
+        self.lower_bound = params["label_lower_bound"]
+        self.upper_bound = params["label_upper_bound"]
         self.features = params["features"]
 
     def __len__(self):
@@ -33,7 +43,7 @@ class SessionDataset(Dataset):
         return (inputs.values, labels.values)
 
 
-def extract_sessions(data, params):
+def _extract_sessions(data, params):
     """Extract sessions.
 
     Args:
@@ -81,7 +91,7 @@ def extract_sessions(data, params):
     return sessions_df
 
 
-def preprocess(data):
+def _preprocess(data):
     """Preprocess dataframe."""
     # Drop points where "charge_now" is nan
     data = data.dropna(subset=["charge_now"])
@@ -103,21 +113,31 @@ def preprocess(data):
 
 
 def create_data_loader(data, params):
-    """"""
+    """Create two (train/val) pytorch data loaders."""
     # Preprocess dataframe
-    data = preprocess(data)
+    data = _preprocess(data)
     logging.info(f"{len(data)} data points")
 
     # Extract sessions
     sessions_df = []
     for uuid in data["uuid"].unique():
         subsample = data[data["uuid"] == uuid]
-        sessions_df += extract_sessions(subsample, params)
+        sessions_df += _extract_sessions(subsample, params)
     logging.info(f"Extracted {len(sessions_df)} sessions")
 
-    dataset = SessionDataset(sessions_df, params)
-    dataloader = DataLoader(
-        dataset,
+    # Split into train/val
+    random.shuffle(sessions_df)
+    train_sessions = sessions_df[:int(len(sessions_df) * params["train_split"])]
+    val_sessions = sessions_df[int(len(sessions_df) * params["train_split"]):]
+
+    train_ds = SessionDataset(train_sessions, params)
+    train_ds = DataLoader(
+        train_ds,
         batch_size=1, shuffle=True,
     )
-    return dataloader
+    val_ds = SessionDataset(val_sessions, params)
+    val_ds = DataLoader(
+        val_ds,
+        batch_size=1, shuffle=True,
+    )
+    return train_ds, val_ds
