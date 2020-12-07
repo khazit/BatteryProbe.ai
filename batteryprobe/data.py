@@ -6,10 +6,9 @@ import logging
 
 import numpy as np
 import pandas as pd
-from torch import from_numpy
 from torch.utils.data import Dataset, DataLoader
-from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence
 
+from batteryprobe.utils import pad_and_pack
 
 class SessionDataset(Dataset):
     """Session dataset.
@@ -24,7 +23,7 @@ class SessionDataset(Dataset):
         params (dict): Parameters dict
     """
     def __init__(self, sessions, params):
-        self.sessions = sessions * params["repeat"]
+        self.sessions = [sessions[0]] * 200 * params["repeat"] # TODO: RBF: surapprentissage
         self.lower_bound = params["label_lower_bound"]
         self.upper_bound = params["label_upper_bound"]
         self.features = params["features"]
@@ -41,7 +40,7 @@ class SessionDataset(Dataset):
         # Cut into inputs and labels
         data = self.sessions[idx][self.features]
         inputs = data[:middlepoint]
-        labels = data.iloc[middlepoint] # TODO: change
+        labels = data.iloc[middlepoint:]
         return (inputs.values, labels.values)
 
 
@@ -155,15 +154,10 @@ def _preprocess(data, params):
 
 
 def collate_fn(batch):
-
-    def pad_and_pack(idx):
-        lengths = [el[idx].shape[0] for el in batch]
-        data  = [from_numpy(el[idx]) for el in batch]
-        data = pad_sequence(data, batch_first=True, padding_value=-999)
-        data = pack_padded_sequence(data, lengths, batch_first=True, enforce_sorted=False)
-        return data
-    import torch # TODO: change
-    return (pad_and_pack(0), torch.stack([from_numpy(el[1]) for el in batch])) ## TODO: ch
+    return (
+        pad_and_pack([el[0] for el in batch]), 
+        pad_and_pack([el[1] for el in batch]),
+    )
 
 
 
