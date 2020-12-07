@@ -4,19 +4,32 @@
 import torch
 from torch import nn
 from tqdm import tqdm
+from torch.nn.utils.rnn import pad_packed_sequence
+
+from batteryprobe.utils import masked_L1
 
 
 def evaluate(model, dataset, target_col):
     """"""
-    loss = nn.L1Loss()
+    loss = masked_L1
     running_loss = 0
     pbar = tqdm(dataset)
     with torch.no_grad():
         for i, (inputs, labels) in enumerate(pbar):
-            out = model(inputs.float(), labels[:, :, 0].float())
+            _, out_steps = pad_packed_sequence(labels,
+                batch_first=True, padding_value=-999)
+            outputs = model(inputs.float(), out_steps)
+
+            # Pad packed labels and outputs
+            pad_labels, _ = pad_packed_sequence(labels,
+                batch_first=True, padding_value=-999)
+            pad_outputs, _ = pad_packed_sequence(outputs,
+                    batch_first=True, padding_value=-999)
+
+            # Compute loss for this batch
             running_loss += loss(
-                out[:, :, target_col],
-                labels[:, :, target_col]
-            )  # loss per batch
+                pad_outputs[:, :, target_col],
+                pad_labels[:, :, target_col]
+            )
             pbar.set_description(f"Loss {running_loss / (i+1):.5f}")
     return running_loss.numpy() / (i+1)
