@@ -13,7 +13,7 @@ def evaluate(model, dataset, target_col):
     pbar = tqdm(dataset)
     with torch.no_grad():
         for i, (inputs, labels) in enumerate(pbar):
-            out = model(inputs, labels[:, :, 0])
+            out = model(inputs.float(), labels[:, :, 0].float())
             running_loss += loss(
                 out[:, :, target_col],
                 labels[:, :, target_col]

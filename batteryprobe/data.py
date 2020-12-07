@@ -6,7 +6,9 @@ import logging
 
 import numpy as np
 import pandas as pd
+from torch import from_numpy
 from torch.utils.data import Dataset, DataLoader
+from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence
 
 
 class SessionDataset(Dataset):
@@ -33,14 +35,13 @@ class SessionDataset(Dataset):
     def __getitem__(self, idx):
         # Generate random float between 20-50%
         rand = random.uniform(self.lower_bound, self.upper_bound)
-
         # Take the breakpoint index
         middlepoint = int(rand * len(self.sessions[idx]))
 
         # Cut into inputs and labels
         data = self.sessions[idx][self.features]
         inputs = data[:middlepoint]
-        labels = data[middlepoint:]
+        labels = data.iloc[middlepoint] # TODO: change
         return (inputs.values, labels.values)
 
 
@@ -92,7 +93,7 @@ def _extract_sessions(data, params):
     return sessions_df
 
 
-def _preprocess(data):
+def _preprocess(data, params):
     """Preprocess dataframe."""
     # Dict to store some values that we'll store in disk later
     artefacts = {}
@@ -147,15 +148,39 @@ def _preprocess(data):
     day = 24*60*60
     data["epoch_sin_day"] = np.sin(data["time"] * (2 * np.pi / day))
 
+    # Drop remaining NaN rows (IMPORTANT: this should always be at the end)
+    data = data.dropna(subset=params["features"])
+
     return data, artefacts
+
+
+def collate_fn(batch):
+
+    def pad_and_pack(idx):
+        lengths = [el[idx].shape[0] for el in batch]
+        data  = [from_numpy(el[idx]) for el in batch]
+        data = pad_sequence(data, batch_first=True, padding_value=-999)
+        data = pack_padded_sequence(data, lengths, batch_first=True, enforce_sorted=False)
+        return data
+    import torch # TODO: change
+    return (pad_and_pack(0), torch.stack([from_numpy(el[1]) for el in batch])) ## TODO: ch
+
 
 
 def create_data_loader(data, params):
     """Create two (train/val) pytorch data loaders."""
     # Preprocess dataframe
-    data, _ = _preprocess(data)
+    data, _ = _preprocess(data, params)
     logging.info(f"{len(data)} data points")
 
+    # Search for NaN values
+    features = params["features"]
+    if data[features].isnull().values.any():
+        logging.warning("Found NaN values in " + ", ".join(
+            data[features].columns[data[features].isna().any()].tolist())
+        )
+        
+    
     # Extract sessions
     sessions_df = []
     for uuid in data["uuid"].unique():
@@ -170,12 +195,12 @@ def create_data_loader(data, params):
 
     train_ds = SessionDataset(train_sessions, params)
     train_ds = DataLoader(
-        train_ds,
-        batch_size=1, shuffle=True,
+        train_ds, collate_fn=collate_fn,
+        batch_size=params["batch_size"], shuffle=True,
     )
     val_ds = SessionDataset(val_sessions, params)
     val_ds = DataLoader(
-        val_ds,
-        batch_size=1, shuffle=True,
+        val_ds, collate_fn=collate_fn,
+        batch_size=params["batch_size"], shuffle=False,
     )
     return train_ds, val_ds
