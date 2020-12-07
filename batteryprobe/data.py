@@ -154,8 +154,9 @@ def _preprocess(data, params):
 
 
 def collate_fn(batch):
+    """Groups element of the dataset into a single batch."""
     return (
-        pad_and_pack([el[0] for el in batch]), 
+        pad_and_pack([el[0] for el in batch]),
         pad_and_pack([el[1] for el in batch]),
     )
 

@@ -2,15 +2,23 @@
 
 
 import torch
-from torch import nn
-from tqdm import tqdm
 from torch.nn.utils.rnn import pad_packed_sequence
+from tqdm import tqdm
 
 from batteryprobe.utils import masked_L1
 
 
 def evaluate(model, dataset, target_col):
-    """"""
+    """Evaluate a model on a dataset given a target feature.
+
+    Args:
+        model (nn.Module): Model to evaluate.
+        dataset (torch.utils.data.Dataset): Evaluation dataset.
+        target_col (int): Target feature.
+
+    Returns:
+        (int) L1 score.
+    """
     loss = masked_L1
     running_loss = 0
     pbar = tqdm(dataset)
