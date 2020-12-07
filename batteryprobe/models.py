@@ -24,7 +24,7 @@ class AutoRegressive(nn.Module):
             out_steps (torch.Tensor): length of the desired output from each element of the batch
         """
         predictions = []
-        x, warmup_state = self.warmup(x)
+        x, warmup_state = self._warmup(x)
         predictions.append(x)
 
         # Loop over every element of a batch
