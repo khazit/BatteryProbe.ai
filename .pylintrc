@@ -22,7 +22,7 @@ ignore-patterns=
 
 # Use multiple processes to speed up Pylint. Specifying 0 will auto-detect the
 # number of processors available to use.
-jobs=1
+jobs=0
 
 # Control the amount of potential inferred values when inferring a single
 # object. This can help the performance when dealing with large functions or
@@ -140,8 +140,9 @@ disable=print-statement,
         exception-escape,
         comprehension-escape,
         redefined-outer-name,
-        logging-fstring-interpolation
-
+        logging-fstring-interpolation,
+        undefined-loop-variable,
+        logging-not-lazy
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
 # multiple time (only on the command line, not in the configuration file where
