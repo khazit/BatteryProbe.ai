@@ -24,7 +24,7 @@ class SessionDataset(Dataset):
         params (dict): Parameters dict
     """
     def __init__(self, sessions, params):
-        self.sessions = sessions
+        self.sessions = sessions * params["repeat"]
         self.lower_bound = params["label_lower_bound"]
         self.upper_bound = params["label_upper_bound"]
         self.features = params["features"]
@@ -179,8 +179,8 @@ def create_data_loader(data, params):
         logging.warning("Found NaN values in " + ", ".join(
             data[features].columns[data[features].isna().any()].tolist())
         )
-        
-    
+
+
     # Extract sessions
     sessions_df = []
     for uuid in data["uuid"].unique():
