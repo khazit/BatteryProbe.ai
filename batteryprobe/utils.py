@@ -20,5 +20,5 @@ def pad_and_pack(data):
 # pylint: disable=C0103
 def masked_L1(inputs, targets):
     """Masked L1 loss."""
-    mask = (inputs == -999)
+    mask = (inputs != -999)
     return torch.abs(inputs - targets).sum() / mask.sum()
