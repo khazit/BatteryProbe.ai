@@ -34,7 +34,7 @@ class AutoRegressive(nn.Module):
 
         Args:
             x (torch.Tensor): inputs
-            context (): The context TODO: trouver le type
+            context (torch.nn.utils.rnn.PackedSequence): The context
         """
         predictions = []
         x, warmup_state = self._warmup(x)
