@@ -5,15 +5,19 @@ description = ""
 authors = ["Your Name <you@example.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "3.7.5"
 pandas = "^1.1.4"
 numpy = "^1.19.4"
 matplotlib = "^3.3.2"
 tqdm = "^4.51.0"
+torch = "^1.7.0"
+seaborn = "^0.11.0"
+scikit-learn = {version = "^0.23.2", optional = true}
 
 [tool.poetry.dev-dependencies]
 jupyter = "^1.0.0"
 pylint = "^2.6.0"
+tensorboard = "^2.4.0"
 
 [build-system]
 requires = ["poetry>=0.12"]
