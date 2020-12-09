@@ -24,8 +24,6 @@ def evaluate(model, dataset, target_col):
     pbar = tqdm(dataset)
     with torch.no_grad():
         for i, ((inputs, context), labels) in enumerate(pbar):
-            _, out_steps = pad_packed_sequence(labels,
-                batch_first=True, padding_value=-999) ##TODO ne sert à rien.
             outputs = model(inputs.float(), context.float())
 
             # Pad packed labels and outputs

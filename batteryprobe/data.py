@@ -147,7 +147,7 @@ def _preprocess(data, params):
     artefacts["mean"] = data[features_to_normalize].mean()
     artefacts["std"] = data[features_to_normalize].std()
     data[features_to_normalize] = (
-                                          data[features_to_normalize] - artefacts["mean"]) / artefacts["std"]
+        data[features_to_normalize] - artefacts["mean"]) / artefacts["std"]
 
     # Convert epoch to sin
     day = 24 * 60 * 60

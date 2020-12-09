@@ -21,6 +21,7 @@ class AutoRegressive(nn.Module):
         params(dict): Parameters dict.
     """
 
+    # pylint: disable=R1725
     def __init__(self, params):
         self.params = params
         super(AutoRegressive, self).__init__()
@@ -29,6 +30,7 @@ class AutoRegressive(nn.Module):
         self.lstm = nn.LSTM(self.in_size, 32, batch_first=True)
         self.dense = nn.Linear(32, self.out_size)
 
+    # pylint: disable=C0103
     def forward(self, x, context):
         """Forward step.
 
@@ -40,7 +42,11 @@ class AutoRegressive(nn.Module):
         x, warmup_state = self._warmup(x)
         predictions.append(x)
 
-        context, lengths_context = pad_packed_sequence(context, batch_first=True, padding_value=-999)
+        context, lengths_context = pad_packed_sequence(
+            context,
+            batch_first=True,
+            padding_value=-999
+        )
         # Loop over every element of a batch
         batch = []
         for i, element in enumerate(x):
@@ -54,6 +60,7 @@ class AutoRegressive(nn.Module):
             timestamps = [element[None, None, :]]
 
             # Predict values
+            # pylint: disable=C0103
             for t in range(lengths_context[i] - 1):
                 # The order here is important. Inputs features should be first
                 in_tensor = torch.cat([element, context[i, t, :]], axis=-1)[None, None, :]
@@ -65,6 +72,7 @@ class AutoRegressive(nn.Module):
         # Pack and pad sequence
         return pad_and_pack(batch)
 
+    # pylint: disable=C0103
     def _warmup(self, x):
         x, state = self.lstm(x)
         x, lengths = pad_packed_sequence(x, batch_first=True, padding_value=-999)
