@@ -1,6 +1,5 @@
 """Define the input data pipeline."""
 
-
 import random
 import logging
 
@@ -10,23 +9,28 @@ from torch.utils.data import Dataset, DataLoader
 
 from batteryprobe.utils import pad_and_pack
 
+
 class SessionDataset(Dataset):
-    """Session dataset.
+    """
+    Session dataset.
 
     Attributes:
         lower_bound (float): Lower bound when splitting the labels from the inputs.
         upper_bound (float): Upper bound when splitting the labels from the inputs.
         features (list): List of features to use.
+        context (list): List of contexts to use.
 
     Args:
         sessions (list): List of pd.DataFrame sessions.
-        params (dict): Parameters dict
+        params (dict): Parameters dict.
     """
+
     def __init__(self, sessions, params):
-        self.sessions = [sessions[0]] * 200 * params["repeat"] # TODO: RBF: surapprentissage
+        self.sessions = sessions * params["repeat"]
         self.lower_bound = params["label_lower_bound"]
         self.upper_bound = params["label_upper_bound"]
         self.features = params["features"]
+        self.context = params["context"]
 
     def __len__(self):
         return len(self.sessions)
@@ -34,14 +38,16 @@ class SessionDataset(Dataset):
     def __getitem__(self, idx):
         # Generate random float between 20-50%
         rand = random.uniform(self.lower_bound, self.upper_bound)
+
         # Take the breakpoint index
         middlepoint = int(rand * len(self.sessions[idx]))
 
         # Cut into inputs and labels
-        data = self.sessions[idx][self.features]
-        inputs = data[:middlepoint]
-        labels = data.iloc[middlepoint:]
-        return (inputs.values, labels.values)
+        data = self.sessions[idx]
+        inputs = data[:middlepoint][self.features + self.context]
+        labels = data.iloc[middlepoint:][self.features]
+        context = data.iloc[middlepoint:][self.context]
+        return (inputs.values, context.values), labels.values
 
 
 def _extract_sessions(data, params):
@@ -83,7 +89,7 @@ def _extract_sessions(data, params):
         data = data[data.index > last_index]
         # Add session if it's long enough (w.r.t time and # of points)
         if (len(session) > params["min_num_points_per_session"]) and \
-          (session[-1]["time"] - session[0]["time"]) > params["min_session_duration"]:
+                (session[-1]["time"] - session[0]["time"]) > params["min_session_duration"]:
             # Add session to list (w/o uuid)
             sessions.append(session)
 
@@ -109,7 +115,7 @@ def _preprocess(data, params):
     data = pd.concat([data, battery_status, os_cat], axis=1)
 
     # Drop obsolete features
-    data = data.drop(['battery_status', 'mean_fans_rpm', 'manufacturer', 'os'], axis = 1)
+    data = data.drop(['battery_status', 'mean_fans_rpm', 'manufacturer', 'os'], axis=1)
 
     # Sort valus in chronological order
     data = data.sort_values(["time"])
@@ -141,10 +147,10 @@ def _preprocess(data, params):
     artefacts["mean"] = data[features_to_normalize].mean()
     artefacts["std"] = data[features_to_normalize].std()
     data[features_to_normalize] = (
-        data[features_to_normalize] - artefacts["mean"]) / artefacts["std"]
+                                          data[features_to_normalize] - artefacts["mean"]) / artefacts["std"]
 
     # Convert epoch to sin
-    day = 24*60*60
+    day = 24 * 60 * 60
     data["epoch_sin_day"] = np.sin(data["time"] * (2 * np.pi / day))
 
     # Drop remaining NaN rows (IMPORTANT: this should always be at the end)
@@ -156,10 +162,12 @@ def _preprocess(data, params):
 def collate_fn(batch):
     """Groups element of the dataset into a single batch."""
     return (
-        pad_and_pack([el[0] for el in batch]),
+        (
+            pad_and_pack([el[0][0] for el in batch]),
+            pad_and_pack([el[0][1] for el in batch])
+        ),
         pad_and_pack([el[1] for el in batch]),
     )
-
 
 
 def create_data_loader(data, params):
@@ -173,8 +181,7 @@ def create_data_loader(data, params):
     if data[features].isnull().values.any():
         logging.warning("Found NaN values in " + ", ".join(
             data[features].columns[data[features].isna().any()].tolist())
-        )
-
+                        )
 
     # Extract sessions
     sessions_df = []
@@ -185,14 +192,18 @@ def create_data_loader(data, params):
 
     # Split into train/val
     random.shuffle(sessions_df)
-    train_sessions = sessions_df[:int(len(sessions_df) * params["train_split"])]
-    val_sessions = sessions_df[int(len(sessions_df) * params["train_split"]):]
+    split_breakpoint = int(len(sessions_df) * params["train_split"])
+    train_sessions = sessions_df[:split_breakpoint]
+    val_sessions = sessions_df[split_breakpoint:]
 
+    # Create train SessionDataset
     train_ds = SessionDataset(train_sessions, params)
     train_ds = DataLoader(
         train_ds, collate_fn=collate_fn,
         batch_size=params["batch_size"], shuffle=True,
     )
+
+    # Create val SessionDataset
     val_ds = SessionDataset(val_sessions, params)
     val_ds = DataLoader(
         val_ds, collate_fn=collate_fn,

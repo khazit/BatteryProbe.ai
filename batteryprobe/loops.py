@@ -5,7 +5,7 @@ import torch
 from torch.nn.utils.rnn import pad_packed_sequence
 from tqdm import tqdm
 
-from batteryprobe.utils import masked_L1
+from batteryprobe.utils import masked_l1
 
 
 def evaluate(model, dataset, target_col):
@@ -19,14 +19,14 @@ def evaluate(model, dataset, target_col):
     Returns:
         (int) L1 score.
     """
-    loss = masked_L1
+    loss = masked_l1
     running_loss = 0
     pbar = tqdm(dataset)
     with torch.no_grad():
-        for i, (inputs, labels) in enumerate(pbar):
+        for i, ((inputs, context), labels) in enumerate(pbar):
             _, out_steps = pad_packed_sequence(labels,
-                batch_first=True, padding_value=-999)
-            outputs = model(inputs.float(), out_steps)
+                batch_first=True, padding_value=-999) ##TODO ne sert à rien.
+            outputs = model(inputs.float(), context.float())
 
             # Pad packed labels and outputs
             pad_labels, _ = pad_packed_sequence(labels,

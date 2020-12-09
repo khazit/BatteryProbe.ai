@@ -1,5 +1,4 @@
-"""Descibe the models architecture."""
-
+"""Describe the models architecture."""
 
 import torch
 from torch import nn
@@ -9,24 +8,39 @@ from batteryprobe.utils import pad_and_pack
 
 
 class AutoRegressive(nn.Module):
-    """AutoRegressive model for time series forecasting."""
-    def __init__(self):
-        super().__init__()
-        self.lstm = nn.LSTM(13, 32, batch_first=True)
-        self.dense = nn.Linear(32, 13)
+    """
+    AutoRegressive model.
 
-    # pylint: disable=C0103
-    def forward(self, x, out_steps=None):
+    Attributes:
+        in_size (int): Size in input of the model.
+        out_size (init): Size in output of the model.
+        lstm (nn.LSTM): The lstm model.
+        dense (nn.Linear): The dense model.
+
+    Args:
+        params(dict): Parameters dict.
+    """
+
+    def __init__(self, params):
+        self.params = params
+        super(AutoRegressive, self).__init__()
+        self.in_size = len(self.params["features"]) + len(self.params["context"])
+        self.out_size = len(self.params["features"])
+        self.lstm = nn.LSTM(self.in_size, 32, batch_first=True)
+        self.dense = nn.Linear(32, self.out_size)
+
+    def forward(self, x, context):
         """Forward step.
 
         Args:
             x (torch.Tensor): inputs
-            out_steps (torch.Tensor): length of the desired output from each element of the batch
+            context (): The context TODO: trouver le type
         """
         predictions = []
         x, warmup_state = self._warmup(x)
         predictions.append(x)
 
+        context, lengths_context = pad_packed_sequence(context, batch_first=True, padding_value=-999)
         # Loop over every element of a batch
         batch = []
         for i, element in enumerate(x):
@@ -40,10 +54,10 @@ class AutoRegressive(nn.Module):
             timestamps = [element[None, None, :]]
 
             # Predict values
-            for _ in range(out_steps[i]-1):
-                x, state = self.lstm(
-                    element[None, None, :], state
-                )
+            for t in range(lengths_context[i] - 1):
+                # The order here is important. Inputs features should be first
+                in_tensor = torch.cat([element, context[i, t, :]], axis=-1)[None, None, :]
+                x, state = self.lstm(in_tensor, state)
                 x = self.dense(x)
                 timestamps.append(x)
             batch.append(torch.cat(timestamps, 1)[0])
@@ -54,6 +68,6 @@ class AutoRegressive(nn.Module):
     def _warmup(self, x):
         x, state = self.lstm(x)
         x, lengths = pad_packed_sequence(x, batch_first=True, padding_value=-999)
-        x = torch.stack([x[i, length-1] for i, length in enumerate(lengths)])
+        x = torch.stack([x[i, length - 1] for i, length in enumerate(lengths)])
         x = self.dense(x)
         return x, state
