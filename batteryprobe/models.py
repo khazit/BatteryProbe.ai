@@ -14,8 +14,8 @@ class AutoRegressive(nn.Module):
     Attributes:
         in_size (int): Size in input of the model.
         out_size (init): Size in output of the model.
-        lstm (nn.LSTM): The lstm model.
-        dense (nn.Linear): The dense model.
+        lstm (nn.LSTM): The lstm layer.
+        dense (nn.Linear): The dense layer.
 
     Args:
         params(dict): Parameters dict.
