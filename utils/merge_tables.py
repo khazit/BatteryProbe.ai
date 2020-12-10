@@ -53,6 +53,9 @@ if __name__ == "__main__":
             on=["time", "battery_status", "manufacturer", "os", "uuid"],
         )
 
+    # Merge "fans_rpm" and "mean_fans_rpm"
+    data["fans_rpm"] = data["fans_rpm"].fillna(data["mean_fans_rpm"])
+
     # Write big table to disk
     print("Writing table to disk ...")
     data.to_csv(out_file)
