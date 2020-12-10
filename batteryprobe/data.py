@@ -26,7 +26,10 @@ class SessionDataset(Dataset):
     """
 
     def __init__(self, sessions, params):
-        self.sessions = sessions * params["repeat"]
+        if params["debug"]:
+            self.sessions = [sessions[0]] * 100 * params["repeat"]
+        else:
+            self.sessions = sessions * params["repeat"]
         self.lower_bound = params["label_lower_bound"]
         self.upper_bound = params["label_upper_bound"]
         self.features = params["features"]
@@ -201,12 +204,14 @@ def create_data_loader(data, params):
     train_ds = DataLoader(
         train_ds, collate_fn=collate_fn,
         batch_size=params["batch_size"], shuffle=True,
+        num_workers=params["n_data_workers"],
+        prefetch_factor=params["prefetch"],
     )
 
     # Create val SessionDataset
     val_ds = SessionDataset(val_sessions, params)
     val_ds = DataLoader(
         val_ds, collate_fn=collate_fn,
-        batch_size=params["batch_size"], shuffle=False,
+        batch_size=params["batch_size"], shuffle=True,
     )
     return train_ds, val_ds

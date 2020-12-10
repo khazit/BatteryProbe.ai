@@ -27,7 +27,7 @@ class AutoRegressive(nn.Module):
         super(AutoRegressive, self).__init__()
         self.in_size = len(self.params["features"]) + len(self.params["context"])
         self.out_size = len(self.params["features"])
-        self.lstm = nn.LSTM(self.in_size, 32, batch_first=True)
+        self.lstm = nn.LSTM(self.in_size, 32, num_layers=params["lstm_layers"], batch_first=True)
         self.dense = nn.Linear(32, self.out_size)
 
     # pylint: disable=C0103
@@ -51,9 +51,9 @@ class AutoRegressive(nn.Module):
         batch = []
         for i, element in enumerate(x):
             # State corresponding to a single element in a batch
-            state = (
-                warmup_state[0][:, i, :][None, :],
-                warmup_state[1][:, i, :][None, :],
+            state = (  # (num_layers, batch, hidden_size)
+                torch.unsqueeze(warmup_state[0][:, i, :], 1),  
+                torch.unsqueeze(warmup_state[1][:, i, :], 1),
             )
 
             # Add first prediction from warmup
