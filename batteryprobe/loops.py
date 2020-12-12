@@ -23,8 +23,8 @@ def evaluate(model, dataset, target_col):
     running_loss = 0
     pbar = tqdm(dataset)
     with torch.no_grad():
-        for i, ((inputs, context), labels) in enumerate(pbar):
-            outputs = model(inputs.float(), context.float())
+        for i, ((inputs, time, context), labels) in enumerate(pbar):
+            outputs = model(inputs.float(), time.float(), context.float())
 
             # Pad packed labels and outputs
             pad_labels, _ = pad_packed_sequence(labels,
