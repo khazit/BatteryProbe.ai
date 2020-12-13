@@ -26,7 +26,7 @@ class SessionDataset(Dataset):
     """
 
     def __init__(self, sessions, params):
-        self.sessions = sessions * params["repeat"]
+        self.sessions = sessions
         self.lower_bound = params["label_lower_bound"]
         self.upper_bound = params["label_upper_bound"]
         self.features = params["features"]
@@ -45,9 +45,10 @@ class SessionDataset(Dataset):
         # Cut into inputs and labels
         data = self.sessions[idx]
         inputs = data[:middlepoint][self.features + self.context]
-        labels = data.iloc[middlepoint:][self.features]
+        time = data["time"]
         context = data.iloc[middlepoint:][self.context]
-        return (inputs.values, context.values), labels.values
+        labels = data.iloc[middlepoint:][self.features]
+        return (inputs.values, time.values, context.values), labels.values
 
 
 def _extract_sessions(data, params):
@@ -61,9 +62,11 @@ def _extract_sessions(data, params):
     Returns:
         List of sessions (pd.Dataframes)
     """
-    sessions = []
+    if len(data) <= 1:
+        return []
 
     logging.debug(f"{data['uuid'].iloc[0]} - {len(data)} points")
+    sessions = []
 
     while len(data) != 0:
         # Initialize some variables
@@ -103,11 +106,13 @@ def _preprocess(data, params):
     # Dict to store some values that we'll store in disk later
     artefacts = {}
 
-    # Drop points where "charge_now" is nan
-    data = data.dropna(subset=["charge_now"])
-
     # Keep points where battery is either charging or discharging
     data = data.loc[data["battery_status"].isin(["Charging", "Discharging"])]
+
+    # Drop points where "charge_now" is nan
+    data = data.dropna(subset=["charge_now", "charge_full"])
+    data["capacity"] = data["capacity"]
+    data["capacity"] = data["capacity"].fillna(100*data["charge_now"] / data["charge_full"])
 
     # Convert categorical features to one-hot representation
     battery_status = pd.get_dummies(data['battery_status'], prefix='battery_status')
@@ -119,9 +124,6 @@ def _preprocess(data, params):
 
     # Sort valus in chronological order
     data = data.sort_values(["time"])
-
-    # Convert capacity to float
-    data["capacity"] = data["capacity"] / 100
 
     # Normalize data
     features_to_normalize = [
@@ -138,7 +140,6 @@ def _preprocess(data, params):
         "battery_temp",
         "load_average_1",
         "swap_load",
-        "charge_now",
         "voltage_now",
         "load_average_5",
         "charge_full_design",
@@ -150,11 +151,11 @@ def _preprocess(data, params):
         data[features_to_normalize] - artefacts["mean"]) / artefacts["std"]
 
     # Convert epoch to sin
-    day = 24 * 60 * 60
-    data["epoch_sin_day"] = np.sin(data["time"] * (2 * np.pi / day))
-
+    period = 60 * 60
+    data["epoch_sin"] = np.sin(data["time"] * (2 * np.pi / period))
+    data["epoch_cos"] = np.cos(data["time"] * (2 * np.pi / period))
     # Drop remaining NaN rows (IMPORTANT: this should always be at the end)
-    data = data.dropna(subset=params["features"])
+    data = data.dropna(subset=params["features"]+params["context"])
 
     return data, artefacts
 
@@ -163,8 +164,9 @@ def collate_fn(batch):
     """Groups element of the dataset into a single batch."""
     return (
         (
-            pad_and_pack([el[0][0] for el in batch]),
-            pad_and_pack([el[0][1] for el in batch])
+            pad_and_pack([el[0][0] for el in batch]),  # inputs
+            pad_and_pack([el[0][1] for el in batch]),  # time
+            pad_and_pack([el[0][2] for el in batch]),  # context
         ),
         pad_and_pack([el[1] for el in batch]),
     )
@@ -193,7 +195,11 @@ def create_data_loader(data, params):
     # Split into train/val
     random.shuffle(sessions_df)
     split_breakpoint = int(len(sessions_df) * params["train_split"])
-    train_sessions = sessions_df[:split_breakpoint]
+    if params["debug"]:
+        train_sessions = [sessions_df[0]] * 200
+    else:
+        train_sessions = sessions_df[:split_breakpoint]
+    train_sessions = train_sessions * params["repeat"]
     val_sessions = sessions_df[split_breakpoint:]
 
     # Create train SessionDataset
@@ -201,12 +207,14 @@ def create_data_loader(data, params):
     train_ds = DataLoader(
         train_ds, collate_fn=collate_fn,
         batch_size=params["batch_size"], shuffle=True,
+        num_workers=params["n_data_workers"],
+        prefetch_factor=params["prefetch"],
     )
 
     # Create val SessionDataset
     val_ds = SessionDataset(val_sessions, params)
     val_ds = DataLoader(
         val_ds, collate_fn=collate_fn,
-        batch_size=params["batch_size"], shuffle=False,
+        batch_size=params["batch_size"], shuffle=True,
     )
     return train_ds, val_ds
