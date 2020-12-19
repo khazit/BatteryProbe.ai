@@ -146,8 +146,9 @@ def diagnose(model, dataset, criterion, target_col, n=6):
                         inputs_len[j], labels_len[j],
                     )
 
-    idx = 0
-    fig, ax = plt.subplots(n // 2, 2, figsize=(15, n*2.5))
+    fig, ax = plt.subplots(n // 2, 2, figsize=(16, n*2))
+    date_fmt = '%d/%m %H:%M:%S'
+    date_formatter = mdate.DateFormatter(date_fmt)
     for row in range(n // 2):
         for col in range(2):
             x, time, context, outputs, y, len_i, len_o = bad_elements[row*2+col]
@@ -170,13 +171,12 @@ def diagnose(model, dataset, criterion, target_col, n=6):
             )
             context = np.round(context[0].numpy(), 3)
             ax[row, col].set_title(f"Loss: {bad_losses[row*2+col].numpy():.4f}\nContext: {context}")
-            idx += 1
 
-            date_fmt = '%d/%m %H:%M:%S'
-            date_formatter = mdate.DateFormatter(date_fmt)
             ax[row, col].xaxis.set_major_formatter(date_formatter)
-            fig.autofmt_xdate()
             ax[row, col].set_ylim([0, 120])
+            plt.setp(ax[row, col].get_xticklabels(), rotation=20, ha='right')
+
+    fig.tight_layout()
     plt.legend()
     plt.show()
 
