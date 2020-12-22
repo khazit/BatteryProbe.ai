@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # General
 .DS_Store
 .AppleDouble
@@ -28,7 +27,6 @@ Temporary Items
 .apdisk
 =======
 *.swp
->>>>>>> master
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
