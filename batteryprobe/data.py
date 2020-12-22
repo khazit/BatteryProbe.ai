@@ -48,7 +48,6 @@ class SessionDataset(Dataset):
             rand = random.uniform(self.lower_bound, self.upper_bound)
             # Take the breakpoint index
             middlepoint = int(rand * len(self.sessions[idx]))
-                        
         # Cut into inputs and labels
         data = self.sessions[idx]
         inputs = data[:middlepoint][self.features + self.context]
@@ -106,7 +105,7 @@ def _extract_sessions(data, params):
     sessions_df = [pd.DataFrame(session).drop(["uuid"], axis=1) for session in sessions]
     return sessions_df
 
-
+#
 def _preprocess(data, params):
     """Preprocess dataframe."""
     # Dict to store some values that we'll store in disk later
@@ -178,7 +177,7 @@ def collate_fn(batch):
     )
 
 
-
+# pylint: disable-msg=too-many-locals
 def create_data_loader(data, params):
     """Create two (train/val) pytorch data loaders."""
     # Preprocess dataframe
@@ -215,9 +214,11 @@ def create_data_loader(data, params):
 
     if params["progressive_bound"]:
         # Use progressive training bound
-        logging.info("Progressive training bound: Loading multiple train sessions with different bounds")
+        logging.info(
+            "Progressive training bound: Loading multiple train sessions with different bounds"
+            )
 
-        # Cut the training sessions in different training sessions with same size 
+        # Cut the training sessions in different training sessions with same size
         for i, bound in enumerate(params["label_bounds"]):
             # Get lower index of the training session
             lower_index = int((i / len(params["label_bounds"]) * len(train_sessions)))
@@ -240,7 +241,7 @@ def create_data_loader(data, params):
                 val_ds, collate_fn=collate_fn,
                 batch_size=params["batch_size"], shuffle=True,
             ))
-    else: 
+    else:
         # Use training bound between lower and upper.
         logging.info("Loading train sessions with random bounds between lower and upper")
         # Create train SessionsDataset
@@ -259,5 +260,4 @@ def create_data_loader(data, params):
             val_ds, collate_fn=collate_fn,
             batch_size=params["batch_size"], shuffle=True,
         ))
-    
     return train_dl, val_dl
