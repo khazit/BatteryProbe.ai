@@ -8,6 +8,8 @@ import pandas as pd
 from torch.utils.data import Dataset, DataLoader
 
 from batteryprobe.utils import pad_and_pack
+
+
 class SessionDataset(Dataset):
     """
     Session dataset.
@@ -16,7 +18,7 @@ class SessionDataset(Dataset):
         lower_bound (float): Lower bound when splitting the labels from the inputs.
         upper_bound (float): Upper bound when splitting the labels from the inputs.
         bound (float): Bound used when training is progressive bound.
-        progressive_bound (boolean): Use progressive training bound method.
+        progressive_bound (bool): Use progressive training bound method.
         features (list): List of features to use.
         context (list): List of contexts to use.
 
@@ -25,11 +27,11 @@ class SessionDataset(Dataset):
         params (dict): Parameters dict.
     """
 
-    def __init__(self, sessions, params, bound = 0):
+    def __init__(self, sessions, params, bound=None):
         self.sessions = sessions
-        self.bound = bound
         self.lower_bound = params["label_lower_bound"]
         self.upper_bound = params["label_upper_bound"]
+        self.bound = bound
         self.progressive_bound = params["progressive_bound"]
         self.features = params["features"]
         self.context = params["context"]
@@ -38,13 +40,12 @@ class SessionDataset(Dataset):
         return len(self.sessions)
 
     def __getitem__(self, idx):
-        # Generate random float between 20-50%
+        # Progressive training bound.
         if self.progressive_bound:
-            # Progressive training bound.
             # Take the breakpoint index
             middlepoint = int(self.bound * len(self.sessions[idx]))
         else:
-            # Train bound between lower and upper bound"
+            # Train bound between lower and upper bound
             rand = random.uniform(self.lower_bound, self.upper_bound)
             # Take the breakpoint index
             middlepoint = int(rand * len(self.sessions[idx]))
@@ -55,6 +56,7 @@ class SessionDataset(Dataset):
         context = data.iloc[middlepoint:][self.context]
         labels = data.iloc[middlepoint:][self.features]
         return (inputs.values, time.values, context.values), labels.values
+
 
 def _extract_sessions(data, params):
     """Extract sessions.
@@ -105,7 +107,7 @@ def _extract_sessions(data, params):
     sessions_df = [pd.DataFrame(session).drop(["uuid"], axis=1) for session in sessions]
     return sessions_df
 
-#
+
 def _preprocess(data, params):
     """Preprocess dataframe."""
     # Dict to store some values that we'll store in disk later
@@ -189,7 +191,7 @@ def create_data_loader(data, params):
     if data[features].isnull().values.any():
         logging.warning("Found NaN values in " + ", ".join(
             data[features].columns[data[features].isna().any()].tolist())
-                        )
+        )
 
     # Extract sessions
     sessions_df = []
@@ -210,13 +212,10 @@ def create_data_loader(data, params):
 
     # Create train and val SessionDataloader list
     train_dl = []
-    val_dl = []
 
     if params["progressive_bound"]:
         # Use progressive training bound
-        logging.info(
-            "Progressive training bound: Loading multiple train sessions with different bounds"
-            )
+        logging.info("Loading multiple train sessions with different bounds")
 
         # Cut the training sessions in different training sessions with same size
         for i, bound in enumerate(params["label_bounds"]):
@@ -225,39 +224,40 @@ def create_data_loader(data, params):
             # Get upper index of the training session
             upper_index = int(((i+1) / len(params["label_bounds"]))  * len(train_sessions))
 
-            # Create train SessionsDataset
+            # Create train SessionDataset
             train_ds = SessionDataset(train_sessions[lower_index:upper_index], params, bound)
             # Add train DataLoader to the train SessionDataLoader list.
-            train_dl.append(DataLoader(
-            train_ds, collate_fn=collate_fn,
-            batch_size=params["batch_size"], shuffle=True,
-            num_workers=params["n_data_workers"],
-            prefetch_factor=params["prefetch"],
-            ))
-            # Create val SessionsDataset
-            val_ds = SessionDataset(val_sessions, params, bound)
-            # Add val DataLoader to the val SessionsDataLoader list.
-            val_dl.append(DataLoader(
-                val_ds, collate_fn=collate_fn,
-                batch_size=params["batch_size"], shuffle=True,
-            ))
+            train_dl.append(
+                DataLoader(train_ds, collate_fn=collate_fn,
+                    batch_size=params["batch_size"], shuffle=True,
+                    num_workers=params["n_data_workers"],
+                    prefetch_factor=params["prefetch"],
+                )
+            )
+        # Create val SessionsDataset
+        params["lower_bound"] = 0.2
+        params["upper_bound"] = 0.8
+        params["progressive_bound"] = False
+        val_ds = SessionDataset(val_sessions, params)
     else:
         # Use training bound between lower and upper.
-        logging.info("Loading train sessions with random bounds between lower and upper")
+        logging.info("Loading train sessions with random bounds")
         # Create train SessionsDataset
         train_ds = SessionDataset(train_sessions, params)
         # Add train DataLoader to the train SessionDataLoader list.
-        train_dl.append(DataLoader(
-            train_ds, collate_fn=collate_fn,
-            batch_size=params["batch_size"], shuffle=True,
-            num_workers=params["n_data_workers"],
-            prefetch_factor=params["prefetch"],
-        ))
+        train_dl.append(
+            DataLoader(
+                train_ds, collate_fn=collate_fn,
+                batch_size=params["batch_size"], shuffle=True,
+                num_workers=params["n_data_workers"],
+                prefetch_factor=params["prefetch"],
+            )
+        )
         # Create val SessionDataset
         val_ds = SessionDataset(val_sessions, params)
-        # Add val DataLoader to the val SessionsDataLoader list.
-        val_dl.append(DataLoader(
-            val_ds, collate_fn=collate_fn,
-            batch_size=params["batch_size"], shuffle=True,
-        ))
+    
+    val_dl = DataLoader(
+        val_ds, collate_fn=collate_fn,
+        batch_size=params["batch_size"], shuffle=True,
+    )
     return train_dl, val_dl
