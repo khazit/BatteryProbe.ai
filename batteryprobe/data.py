@@ -255,7 +255,7 @@ def create_data_loader(data, params):
         )
         # Create val SessionDataset
         val_ds = SessionDataset(val_sessions, params)
-    
+
     val_dl = DataLoader(
         val_ds, collate_fn=collate_fn,
         batch_size=params["batch_size"], shuffle=True,
