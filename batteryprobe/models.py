@@ -97,8 +97,9 @@ class AutoRegressive(nn.Module):
     def __init__(self, params):
         self.params = params
         super().__init__()
+        # pylint: disable=C0301
         self.in_size = 2 * len(self.params["features"]) + len(self.params["context"]) + params["t2v_k"]
-        self.out_size = 2 * len(self.params["features"]) ## Vecteurs moyennes + vecteurs std 
+        self.out_size = 2 * len(self.params["features"]) ## Vecteurs moyennes + vecteurs std
         self.t2v = Time2Vec(k=params["t2v_k"])
         self.lstm = nn.LSTM(self.in_size, 64, num_layers=params["lstm_layers"], batch_first=True)
         self.dense = nn.Linear(64, self.out_size)
@@ -160,7 +161,7 @@ class AutoRegressive(nn.Module):
         return x, state
 
     def prepare_input(self, x, time):
-        """ Prepare input by adding time embedding and std values to input feature""" 
+        """ Prepare input by adding time embedding and std values to input feature"""
         time_embedding = self.embed_time(x, time)
         x, x_len = pad_packed_sequence(x,
             batch_first=True, padding_value=-999
@@ -172,13 +173,13 @@ class AutoRegressive(nn.Module):
         # Add std and time embeddings to inputs
         x = torch.cat(
             (
-                x,  # inputs 
+                x,  # inputs
                 torch.ones(x.shape[0], x.shape[1], len(self.params["features"])),  # std
                 inputs_time_embedding  # time embeddings
             ), 2
         )
         x = pack_padded_sequence(x, x_len, batch_first=True, enforce_sorted=False)
-        return x, time_embedding  
+        return x, time_embedding
 
     def embed_time(self, x, time):
         """Use Time2Vec layer to compute a time embedding and add it to input features."""

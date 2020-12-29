@@ -29,7 +29,7 @@ def masked_l1(inputs, targets):
     return torch.abs(inputs - targets).sum() / mask.sum()
 
 def masked_nllloss(outputs, targets):
-
+    """Masked NLL Loss."""
     # Center between mean and stds
     i = outputs.shape[2] // 2
     # Means
@@ -40,7 +40,7 @@ def masked_nllloss(outputs, targets):
     stds = torch.clip(stds[stds != -999], min=0.01)
     # Targets
     targets = targets[targets != -999]
-    
+    # Norm dist
     norm_dist = torch.distributions.Normal(means, stds)
     return -norm_dist.log_prob(targets).mean() + torch.abs(means - targets).mean()
 
@@ -91,12 +91,12 @@ def plot_sample(dataset, target_col, n=1, model=None):
                 outputs[idx, :labels_len[idx], target_col],
                 "k--", label="Predictions"
             )
-            # Confidence interval 
+            # Confidence interval
             ci = outputs[idx, :labels_len[idx], (outputs.shape[2] // 2)+target_col]
             ax.fill_between(
-                date[inputs_len[idx]:time_len[idx]], 
-                (outputs[idx, :labels_len[idx], target_col] - ci), 
-                (outputs[idx, :labels_len[idx], target_col] + ci), 
+                date[inputs_len[idx]:time_len[idx]],
+                (outputs[idx, :labels_len[idx], target_col] - ci),
+                (outputs[idx, :labels_len[idx], target_col] + ci),
                 color='b', alpha=.1)
 
         date_fmt = '%d/%m %H:%M:%S'
