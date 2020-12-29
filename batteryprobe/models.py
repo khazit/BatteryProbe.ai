@@ -97,8 +97,8 @@ class AutoRegressive(nn.Module):
     def __init__(self, params):
         self.params = params
         super().__init__()
-        self.in_size = len(self.params["features"]) + len(self.params["context"]) + params["t2v_k"]
-        self.out_size = len(self.params["features"])
+        self.in_size = 2 * len(self.params["features"]) + len(self.params["context"]) + params["t2v_k"]
+        self.out_size = 2 * len(self.params["features"]) ## Vecteurs moyennes + vecteurs std 
         self.t2v = Time2Vec(k=params["t2v_k"])
         self.lstm = nn.LSTM(self.in_size, 64, num_layers=params["lstm_layers"], batch_first=True)
         self.dense = nn.Linear(64, self.out_size)
@@ -113,7 +113,7 @@ class AutoRegressive(nn.Module):
             context (torch.nn.utils.rnn.PackedSequence): Context
         """
         # Embed time and add it to inputs
-        x, time_embedding = self.embed_time(x, time)
+        x, time_embedding = self.prepare_input(x, time)
 
         # Pass into warmup
         x, warmup_state = self._warmup(x)
@@ -159,12 +159,9 @@ class AutoRegressive(nn.Module):
         x = self.dense(x)
         return x, state
 
-    def embed_time(self, x, time):
-        """Use Time2Vec layer to compute a time embedding and add it to input features."""
-        time, _ = pad_packed_sequence(time,
-            batch_first=True, padding_value=-999
-        )
-        time_embedding = self.t2v(torch.unsqueeze(time, -1))
+    def prepare_input(self, x, time):
+        """ Prepare input by adding time embedding and std values to input feature""" 
+        time_embedding = self.embed_time(x, time)
         x, x_len = pad_packed_sequence(x,
             batch_first=True, padding_value=-999
         )
@@ -172,6 +169,22 @@ class AutoRegressive(nn.Module):
             time_embedding[i, :length] for i, length in enumerate(x_len)],
             batch_first=True, padding_value=-999
         )
-        x = torch.cat((x, inputs_time_embedding), 2)
+        # Add std and time embeddings to inputs
+        x = torch.cat(
+            (
+                x,  # inputs 
+                torch.ones(x.shape[0], x.shape[1], len(self.params["features"])),  # std
+                inputs_time_embedding  # time embeddings
+            ), 2
+        )
         x = pack_padded_sequence(x, x_len, batch_first=True, enforce_sorted=False)
-        return x, time_embedding
+        return x, time_embedding  
+
+    def embed_time(self, x, time):
+        """Use Time2Vec layer to compute a time embedding and add it to input features."""
+        time, _ = pad_packed_sequence(time,
+            batch_first=True, padding_value=-999
+        )
+        time_embedding = self.t2v(torch.unsqueeze(time, -1))
+
+        return time_embedding

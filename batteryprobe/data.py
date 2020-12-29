@@ -120,6 +120,7 @@ def _preprocess(data, params):
     data = data.dropna(subset=["charge_now", "charge_full"])
     data["capacity"] = data["capacity"]
     data["capacity"] = data["capacity"].fillna(100*data["charge_now"] / data["charge_full"])
+    # Capacity between 0 and 1 
     data["capacity"] = data["capacity"] / 100.0
 
     # Convert categorical features to one-hot representation
