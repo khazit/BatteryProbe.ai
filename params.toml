@@ -1,4 +1,3 @@
-[dataset]
 # Maximum gap (in seconds) between two data points to be considered 
 # from different sessions
 max_gap_between_sessions = 
@@ -44,10 +43,20 @@ n_data_workers =
 # Number of elements to prefetch
 prefetch =
 
-[model]
-
 # Number of LSTM layers to stack
 lstm_layers =
 
 # Number of features in the time embedding
 t2v_k =
+
+# Number of epochs
+n_epochs = 
+
+# Initial learning rate
+learning_rate = 
+
+# Max patience (in epochs)
+max_patience = 
+
+# Logging directory
+log_dir =
