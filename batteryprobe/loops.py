@@ -1,11 +1,98 @@
 """Define the training and evaluation loops."""
 
+import logging
 
 import torch
+import torch.optim as optim
+from torch.utils.tensorboard import SummaryWriter
 from torch.nn.utils.rnn import pad_packed_sequence
 from tqdm import tqdm
 
 from batteryprobe.utils import masked_l1
+
+
+def train(model, datasets, params):
+    """Train a model on a given dataset."""
+    # pylint: disable=R0914
+    # Prepare training
+    patience = 0
+    best_loss = 9999
+    idx_dataloader = 0
+    criterion = masked_l1
+    optimizer = optim.Adam(model.parameters(), lr=params["learning_rate"])
+    train_dls, val_dl = datasets
+    writer = SummaryWriter(params["log_dir"])
+
+    for epoch in range(params["n_epochs"]):
+        ########### Training ##########
+        running_loss = 0
+        pbar = tqdm(train_dls[idx_dataloader])
+        for i, ((inputs, time, context), labels) in enumerate(pbar):
+            optimizer.zero_grad()
+            # Forward pass
+            outputs = model(inputs.float(), time.float(), context.float())
+
+            # Backward pass
+            pad_labels, _ = pad_packed_sequence(labels, batch_first=True, padding_value=-999)
+            pad_outputs, _ = pad_packed_sequence(outputs, batch_first=True, padding_value=-999)
+            loss = criterion(pad_outputs, pad_labels.float())
+            loss.backward()
+            optimizer.step()
+
+            # Update progress bar
+            running_loss += loss.item()
+            pbar.set_description(f"Epoch #{epoch+1} - Loss = {running_loss / (i+1):.5f}\t")
+
+        ########### Validation ##########
+        val_running_loss = 0
+        pbar = tqdm(val_dl)
+        with torch.no_grad():
+            for j, ((inputs, time, context), labels) in enumerate(pbar):
+                # Evaluate
+                outputs = model(inputs.float(), time.float(), context.float())
+
+                # Compute loss
+                pad_labels, _ = pad_packed_sequence(labels, batch_first=True, padding_value=-999)
+                pad_outputs, _ = pad_packed_sequence(outputs, batch_first=True, padding_value=-999)
+                loss = criterion(pad_outputs, pad_labels.float())
+
+                # Update progress bar
+                val_running_loss += loss  # MSE per batch
+                pbar.set_description(f"Validation loss = {val_running_loss / (j+1):.5f}\t")
+
+        ########### Callbacks at the end of each epoch ##########
+        # Tensorboard
+        writer.add_scalars("loss", {
+            "train": running_loss,
+            "val": val_running_loss,
+        }, epoch+1)
+        # Keep best model
+        if (val_running_loss / (j+1)) < best_loss:
+            logging.info(
+                f"Validation loss improved from {best_loss} to {(val_running_loss / (j+1))}"
+            )
+            best_loss = (val_running_loss / (j+1))
+            torch.save(model.state_dict(), "model.pt")
+            patience = 0
+        else:
+            logging.info(
+                f"Val loss did not improve. Patience: {patience} (max: {params['max_patience']})")
+            patience += 1
+        # Early stopping
+        if patience >= params["max_patience"]:
+            logging.info("Triggered early stopping.")
+            idx_dataloader += 1
+            if idx_dataloader == len(train_dls):
+                break
+            patience = 0
+            logging.info(
+                f"Using next dataloader w/ bounds {params['label_bounds'][idx_dataloader]}")
+
+    writer.add_hparams(
+        {k:v.__str__() if isinstance(v, list) else v for k, v in params.items()},
+        {"val_loss": best_loss}
+    )
+    logging.info("Training done.")
 
 
 def evaluate(model, dataset, target_col):
