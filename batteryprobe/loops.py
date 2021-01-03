@@ -21,7 +21,8 @@ def train(model, datasets, params):
     criterion = masked_l1
     optimizer = optim.Adam(model.parameters(), lr=params["learning_rate"])
     train_dls, val_dl = datasets
-    writer = SummaryWriter(params["log_dir"])
+    if not params["debug"]:
+        writer = SummaryWriter(params["log_dir"])
 
     for epoch in range(params["n_epochs"]):
         ########### Training ##########
@@ -41,7 +42,7 @@ def train(model, datasets, params):
 
             # Update progress bar
             running_loss += loss.item()
-            pbar.set_description(f"Epoch #{epoch+1} - Loss = {running_loss / (i+1):.5f}\t")
+            pbar.set_description(f"Epoch #{epoch+1} - Loss = {running_loss / (i+1):.5f}")
 
         ########### Validation ##########
         val_running_loss = 0
@@ -58,10 +59,12 @@ def train(model, datasets, params):
 
                 # Update progress bar
                 val_running_loss += loss  # MSE per batch
-                pbar.set_description(f"Validation loss = {val_running_loss / (j+1):.5f}\t")
+                pbar.set_description(f"Validation loss = {val_running_loss / (j+1):.5f}t")
 
         ########### Callbacks at the end of each epoch ##########
         # Tensorboard
+        if params["debug"]:
+            continue
         writer.add_scalars("loss", {
             "train": running_loss,
             "val": val_running_loss,
@@ -88,10 +91,11 @@ def train(model, datasets, params):
             logging.info(
                 f"Using next dataloader w/ bounds {params['label_bounds'][idx_dataloader]}")
 
-    writer.add_hparams(
-        {k:v.__str__() if isinstance(v, list) else v for k, v in params.items()},
-        {"val_loss": best_loss}
-    )
+    if not params["debug"]:
+        writer.add_hparams(
+            {k:v.__str__() if isinstance(v, list) else v for k, v in params.items()},
+            {"val_loss": best_loss}
+        )
     logging.info("Training done.")
 
 
