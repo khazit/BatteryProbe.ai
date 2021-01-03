@@ -215,7 +215,7 @@ def create_data_loader(data, params):
 
     if params["progressive_bound"]:
         # Use progressive training bound
-        logging.info("Loading multiple train sessions with different bounds")
+        logging.info("Loading train sessions with progressive bounds")
 
         # Cut the training sessions in different training sessions with same size
         for i, bound in enumerate(params["label_bounds"]):
