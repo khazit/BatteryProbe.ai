@@ -28,7 +28,7 @@ if __name__ == "__main__":
 
         # Data
         logging.info(f"Reading and processing data from {params['data_path']}")
-        df = pd.read_csv("data_54.38.188.95/all.csv")
+        df = pd.read_csv(params["data_path"])
         df = df.iloc[::params["skip_frequency"]]
         train_dls, val_dl = create_data_loader(df, params)
         target_col = params["features"].index("capacity")
