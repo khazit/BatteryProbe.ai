@@ -1,3 +1,5 @@
+*.toml
+
 # General
 .DS_Store
 .AppleDouble
