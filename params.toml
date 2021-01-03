@@ -1,3 +1,9 @@
+# Path to the CSV data file
+data_path = 
+
+# Keep one row every skip_frequency row
+skip_frequency = 
+
 # Maximum gap (in seconds) between two data points to be considered 
 # from different sessions
 max_gap_between_sessions = 
