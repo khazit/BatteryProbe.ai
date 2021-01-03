@@ -2,8 +2,9 @@
 
 
 import sys
+import uuid
 import logging
-from os.path import isfile
+from os.path import isfile, join
 
 import toml
 import torch
@@ -12,6 +13,7 @@ import pandas as pd
 from batteryprobe.data import create_data_loader
 from batteryprobe.loops import train, evaluate
 from batteryprobe.models import Baseline, AutoRegressive
+
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -22,6 +24,7 @@ if __name__ == "__main__":
         assert isfile(filepath), f"{filepath} is not a file."
         logging.info(f"Loading parameters from {filepath}")
         params = toml.load(filepath)
+        params["log_dir"] = join(params["log_dir"], uuid.uuid4().hex)
 
         # Data
         logging.info(f"Reading and processing data from {params['data_path']}")

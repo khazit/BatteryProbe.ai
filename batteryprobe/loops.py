@@ -1,6 +1,7 @@
 """Define the training and evaluation loops."""
 
 import logging
+from os.path import join
 
 import torch
 import torch.optim as optim
@@ -59,15 +60,15 @@ def train(model, datasets, params):
 
                 # Update progress bar
                 val_running_loss += loss  # MSE per batch
-                pbar.set_description(f"Validation loss = {val_running_loss / (j+1):.5f}t")
+                pbar.set_description(f"Validation loss = {val_running_loss / (j+1):.5f}")
 
         ########### Callbacks at the end of each epoch ##########
         # Tensorboard
         if params["debug"]:
             continue
         writer.add_scalars("loss", {
-            "train": running_loss,
-            "val": val_running_loss,
+            "train": running_loss / (i+1),
+            "val": val_running_loss / (j+1),
         }, epoch+1)
         # Keep best model
         if (val_running_loss / (j+1)) < best_loss:
@@ -75,7 +76,7 @@ def train(model, datasets, params):
                 f"Validation loss improved from {best_loss} to {(val_running_loss / (j+1))}"
             )
             best_loss = (val_running_loss / (j+1))
-            torch.save(model.state_dict(), "model.pt")
+            torch.save(model.state_dict(), join(params["log_dir"], "model.pt"))
             patience = 0
         else:
             logging.info(
