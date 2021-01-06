@@ -1,0 +1,68 @@
+# Path to the CSV data file
+data_path = 
+
+# Keep one row every skip_frequency row
+skip_frequency = 
+
+# Maximum gap (in seconds) between two data points to be considered 
+# from different sessions
+max_gap_between_sessions = 
+
+# Minimum number of data points
+min_num_points_per_session =
+
+# Minimum session duration (in seconds)
+min_session_duration =
+
+# For each session in the dataset, part of it is used as an input
+# while the other is used as a label (target). The following parameters
+# define where does this split happen.
+# If `progressive_bound` is set to `true`, n different training datasets are 
+# returned for n different breakpoints defined in `label_bounds`
+# If it is set to false, a random point is chosen between `label_lower_bound`
+# and `label_upper_bound`.
+# The validation dataset is always defined using the latter two parameters,
+# regardless of the `progressive_bound` flag.
+progressive_bound = 
+label_lower_bound =
+label_upper_bound =
+label_bounds =
+
+# Proportion of the dataset to include in the train split
+train_split =
+
+# Arrays of column names in the dataframe. Context is features that are fixed 
+# in time (OS for eg)
+features =
+context =
+
+# Batch size
+batch_size =
+# Number of times that the training dataset is repeated
+repeat =
+# Debugging flag.
+debug =
+
+# Number of workers for parallel data preprocessing
+n_data_workers =
+
+# Number of elements to prefetch
+prefetch =
+
+# Number of LSTM layers to stack
+lstm_layers =
+
+# Number of features in the time embedding
+t2v_k =
+
+# Number of epochs
+n_epochs = 
+
+# Initial learning rate
+learning_rate = 
+
+# Max patience (in epochs)
+max_patience = 
+
+# Logging directory
+log_dir =

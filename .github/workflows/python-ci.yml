@@ -17,4 +17,4 @@ jobs:
       - name: Install dependencies
         run: poetry install --no-dev && poetry run pip install pylint
       - name: Run pylint
-        run: poetry run pylint batteryprobe utils/merge_tables.py 
+        run: poetry run pylint batteryprobe utils/merge_tables.py *.py
