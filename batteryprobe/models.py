@@ -99,7 +99,7 @@ class AutoRegressive(nn.Module):
         super().__init__()
         # pylint: disable=C0301
         self.in_size = 2 * len(self.params["features"]) + len(self.params["context"]) + params["t2v_k"]
-        self.out_size = 2 * len(self.params["features"]) ## Vecteurs moyennes + vecteurs std
+        self.out_size = 2 * len(self.params["features"])  # Outputs = Means + Stds
         self.t2v = Time2Vec(k=params["t2v_k"])
         self.lstm = nn.LSTM(self.in_size, 64, num_layers=params["lstm_layers"], batch_first=True)
         self.dense = nn.Linear(64, self.out_size)
