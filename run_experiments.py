@@ -46,7 +46,9 @@ if __name__ == "__main__":
         # Evaluation
         logging.info("Evaluating trained model")
         if not params["debug"]:
-            model.load_state_dict(torch.load("model.pt"))
+            model.load_state_dict(
+                torch.load(join(params["log_dir"], "model.pt"))
+            )
             model.eval()
             score = evaluate(model, val_dl, target_col=target_col)
         else:
