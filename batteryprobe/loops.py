@@ -9,7 +9,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.nn.utils.rnn import pad_packed_sequence
 from tqdm import tqdm
 
-from batteryprobe.utils import masked_l1
+from batteryprobe.utils import masked_l1, masked_nllloss
 
 
 def train(model, datasets, params):
@@ -19,7 +19,10 @@ def train(model, datasets, params):
     patience = 0
     best_loss = 9999
     idx_dataloader = 0
-    criterion = masked_l1
+    if params["use_std"]:
+        criterion = masked_nllloss
+    else:
+        criterion = masked_l1
     optimizer = optim.Adam(model.parameters(), lr=params["learning_rate"])
     train_dls, val_dl = datasets
     if not params["debug"]:
@@ -100,7 +103,7 @@ def train(model, datasets, params):
     logging.info("Training done.")
 
 
-def evaluate(model, dataset, target_col):
+def evaluate(model, dataset, target_col, use_std = False ):
     """Evaluate a model on a dataset given a target feature.
 
     Args:
@@ -111,7 +114,10 @@ def evaluate(model, dataset, target_col):
     Returns:
         (int) L1 score.
     """
-    loss = masked_l1
+    if use_std:
+        loss = masked_nllloss
+    else:
+        loss = masked_l1
     running_loss = 0
     pbar = tqdm(dataset)
     with torch.no_grad():
