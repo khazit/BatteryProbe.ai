@@ -55,6 +55,9 @@ lstm_layers =
 # Number of features in the time embedding
 t2v_k =
 
+# If true, model outputs target value with corresponding std 
+use_std =
+
 # Number of epochs
 n_epochs = 
 
