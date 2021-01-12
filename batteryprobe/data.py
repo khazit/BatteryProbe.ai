@@ -3,7 +3,6 @@
 import random
 import logging
 
-import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader
 
@@ -159,10 +158,6 @@ def _preprocess(data, params):
     data[features_to_normalize] = (
         data[features_to_normalize] - artefacts["mean"]) / artefacts["std"]
 
-    # Convert epoch to sin
-    period = 60 * 60
-    data["epoch_sin"] = np.sin(data["time"] * (2 * np.pi / period))
-    data["epoch_cos"] = np.cos(data["time"] * (2 * np.pi / period))
     # Drop remaining NaN rows (IMPORTANT: this should always be at the end)
     data = data.dropna(subset=params["features"]+params["context"])
 

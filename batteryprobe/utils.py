@@ -28,6 +28,7 @@ def masked_l1(inputs, targets):
     mask = (inputs != -999)
     return torch.abs(inputs - targets).sum() / mask.sum()
 
+
 def masked_nllloss(outputs, targets):
     """Masked NLL Loss."""
     # Center between mean and stds
@@ -46,7 +47,7 @@ def masked_nllloss(outputs, targets):
 
 
 # pylint: disable=R0914
-def plot_sample(dataset, target_col, n=1, model=None):
+def plot_sample(dataset, target_col, n=1, model=None, use_std=False):
     """Plot n samples from a given dataset.
 
     Args:
@@ -91,13 +92,14 @@ def plot_sample(dataset, target_col, n=1, model=None):
                 outputs[idx, :labels_len[idx], target_col],
                 "k--", label="Predictions"
             )
-            # Confidence interval
-            ci = outputs[idx, :labels_len[idx], (outputs.shape[2] // 2)+target_col]
-            ax.fill_between(
-                date[inputs_len[idx]:time_len[idx]],
-                (outputs[idx, :labels_len[idx], target_col] - ci),
-                (outputs[idx, :labels_len[idx], target_col] + ci),
-                color='b', alpha=.1)
+            if use_std:
+                # Confidence interval (99.7%)
+                ci = outputs[idx, :labels_len[idx], 2*target_col + 1]
+                ax.fill_between(
+                    date[inputs_len[idx]:time_len[idx]],
+                    (outputs[idx, :labels_len[idx], target_col] - 3*ci),
+                    (outputs[idx, :labels_len[idx], target_col] + 3*ci),
+                    color='b', alpha=.1)
 
         date_fmt = '%d/%m %H:%M:%S'
         date_formatter = mdate.DateFormatter(date_fmt)

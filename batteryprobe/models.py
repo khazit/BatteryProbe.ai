@@ -14,8 +14,10 @@ class Baseline(nn.Module):
 
     Use a linear slope of the inputs to predict the target column.
     """
-    def __init__(self, target_col):
+
+    def __init__(self, target_col, use_std=False):
         super().__init__()
+        self.use_std = use_std
         self.target_col = target_col
 
     def forward(self, x, time, context):
@@ -43,6 +45,8 @@ class Baseline(nn.Module):
             # Compute res
             res[i, :len_context[i], self.target_col] = slopes[i] \
                 * time[i, len_x[i]:len_time[i]] + beta[i]
+            if self.use_std:
+                res[i, :len_context[i], 2 * self.target_col + 1] = 0
 
         # Pack sequences
         res = pack_padded_sequence(res,
@@ -98,8 +102,12 @@ class AutoRegressive(nn.Module):
         self.params = params
         super().__init__()
         # pylint: disable=C0301
-        self.in_size = 2 * len(self.params["features"]) + len(self.params["context"]) + params["t2v_k"]
-        self.out_size = 2 * len(self.params["features"])  # Outputs = Means + Stds
+        if params["use_std"]:
+            k = 2
+        else:
+            k = 1
+        self.in_size = k * len(self.params["features"]) + len(self.params["context"]) + params["t2v_k"]
+        self.out_size = k * len(self.params["features"])  # Outputs = Means + Stds
         self.t2v = Time2Vec(k=params["t2v_k"])
         self.lstm = nn.LSTM(self.in_size, 64, num_layers=params["lstm_layers"], batch_first=True)
         self.dense = nn.Linear(64, self.out_size)
@@ -114,7 +122,7 @@ class AutoRegressive(nn.Module):
             context (torch.nn.utils.rnn.PackedSequence): Context
         """
         # Embed time and add it to inputs
-        x, time_embedding = self.prepare_input(x, time)
+        x, time_embedding = self.prepare_input(x, time, self.params["use_std"])
 
         # Pass into warmup
         x, warmup_state = self._warmup(x)
@@ -160,7 +168,7 @@ class AutoRegressive(nn.Module):
         x = self.dense(x)
         return x, state
 
-    def prepare_input(self, x, time):
+    def prepare_input(self, x, time, use_std):
         """ Prepare input by adding time embedding and std values to input feature"""
         time_embedding = self.embed_time(x, time)
         x, x_len = pad_packed_sequence(x,
@@ -171,13 +179,21 @@ class AutoRegressive(nn.Module):
             batch_first=True, padding_value=-999
         )
         # Add std and time embeddings to inputs
-        x = torch.cat(
-            (
-                x,  # inputs
-                torch.ones(x.shape[0], x.shape[1], len(self.params["features"])),  # std
-                inputs_time_embedding  # time embeddings
-            ), 2
-        )
+        if use_std:
+            x = torch.cat(
+                (
+                    x,  # inputs
+                    torch.ones(x.shape[0], x.shape[1], len(self.params["features"])),  # std
+                    inputs_time_embedding  # time embeddings
+                ), 2
+            )
+        else:
+            x = torch.cat(
+                (
+                    x,  # inputs
+                    inputs_time_embedding  # time embeddings
+                ), 2
+            )
         x = pack_padded_sequence(x, x_len, batch_first=True, enforce_sorted=False)
         return x, time_embedding
 
