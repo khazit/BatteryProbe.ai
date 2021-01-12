@@ -15,7 +15,7 @@ class Baseline(nn.Module):
     Use a linear slope of the inputs to predict the target column.
     """
 
-    def __init__(self, target_col, use_std = False):
+    def __init__(self, target_col, use_std=False):
         super().__init__()
         self.use_std = use_std
         self.target_col = target_col

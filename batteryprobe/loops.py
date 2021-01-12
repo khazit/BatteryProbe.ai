@@ -11,10 +11,11 @@ from tqdm import tqdm
 
 from batteryprobe.utils import masked_l1, masked_nllloss
 
+# pylint: disable=R0914, R0915
+
 
 def train(model, datasets, params):
     """Train a model on a given dataset."""
-    # pylint: disable=R0914
     # Prepare training
     patience = 0
     best_loss = 9999
@@ -103,7 +104,7 @@ def train(model, datasets, params):
     logging.info("Training done.")
 
 
-def evaluate(model, dataset, target_col, use_std = False ):
+def evaluate(model, dataset, target_col, use_std=False):
     """Evaluate a model on a dataset given a target feature.
 
     Args:
