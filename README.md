@@ -81,9 +81,11 @@ If `progressive_bounds = [0.9, 0.7, 0.3]`:
   1. We first train on
 
   ![easy](img/easy.png)
+
   2. Then
 
   ![medium](img/medium.png)
+
   3. And finally
 
   ![hard](img/hard.png)
