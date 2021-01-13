@@ -95,7 +95,7 @@ We also implemented a way to associate an uncertainty estimate to our prediction
 
 ## Implementation
 ### Install
-All the dependencies are defined by poetry in a pyproject.toml file. To install the environment:
+All the dependencies are defined by poetry in a `pyproject.toml` file. To install the environment:
 ```
 $ git pull https://github.com/khazit/BatteryProbe.ai.git
 $ cd BatteryProbe.ai
