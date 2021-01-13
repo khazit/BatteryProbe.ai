@@ -37,6 +37,8 @@ We extract charging and discharging sessions from our dataset, then split each o
 A basic baseline for our goal would be to use a linear projection to predict the remainder of the SoC profile:
 ![baseline](img/baseline.png)
 
+A L1 loss is used to evaluate our outputs.
+
 ## AutoRegressive architecture
 In a production environment, we’d want to output sequences of variable length. More precisely, we’d like to predict the SoC (state of charge) profile until it reaches 0% when discharging, or 100% when charging.
 Using an Autoregressive RNN allows us this kind of flexibility.
@@ -53,7 +55,7 @@ A forward pass consist of two phases:
 ## Distinction between context and features
 Among the data that is used as our models input, it's important to make a distinction between context and features.
 
-Context is all the columns that give context to our predictions. They are fixed in timeso there is no need to predict them in our AutoRegressive architecture. Context could be the type of OS, some intrinsic information about the battery or wether it is plugged in or not.
+Context is all the columns that give context to our predictions. They are fixed in time so there is no need to predict them in our AutoRegressive architecture. Context could be the type of OS, some intrinsic information about the battery or wether it is plugged in or not.
 
 Features are what's left, and represent variables that should be predicted in a forward pass.
 
@@ -76,9 +78,15 @@ When using progressive bounds, the model will learn to predict for a set of give
 For a given list of `n` bounds, the training dataset will be divided into `n` datasets, so that the model doesn't see the same sessions times.
 
 If `progressive_bounds = [0.9, 0.7, 0.3]`:
-  1. We first train on ![easy](img/easy.png)
-  1. Then ![medium](img/medium.png)
-  1. And finally ![hard](img/hard.png)
+  1. We first train on
+
+  ![easy](img/easy.png)
+  2. Then
+
+  ![medium](img/medium.png)
+  3. And finally
+
+  ![hard](img/hard.png)
 
 ## Uncertainty estimation
 We also implemented a way to associate an uncertainty estimate to our predictions. When the flag `use_std` is true in the TOML config file, an Negative Log Likelihood (NLL) loss term is added to the L1 loss.
