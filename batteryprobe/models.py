@@ -110,7 +110,10 @@ class AutoRegressive(nn.Module):
         self.out_size = k * len(self.params["features"])  # Outputs = Means + Stds
         self.t2v = Time2Vec(k=params["t2v_k"])
         self.lstm = nn.LSTM(self.in_size, 64, num_layers=params["lstm_layers"], batch_first=True)
-        self.dense = nn.Linear(64, self.out_size)
+        self.activation = nn.ReLU()
+        self.dense_1 = nn.Linear(64, 32)
+        self.dense_2 = nn.Linear(32, 16)
+        self.dense_3 = nn.Linear(16, self.out_size)
 
     # pylint: disable=W0613
     def forward(self, x, time, context):
@@ -154,7 +157,9 @@ class AutoRegressive(nn.Module):
                     axis=-1
                 )[None, None, :]
                 x, state = self.lstm(in_tensor, state)
-                x = self.dense(x)
+                x = self.activation(self.dense_1(x))
+                x = self.activation(self.dense_2(x))
+                x = self.dense_3(x)
                 timestamps.append(x)
             batch.append(torch.cat(timestamps, 1)[0])
 
@@ -165,7 +170,9 @@ class AutoRegressive(nn.Module):
         x, state = self.lstm(x)
         x, lengths = pad_packed_sequence(x, batch_first=True, padding_value=-999)
         x = torch.stack([x[i, length - 1] for i, length in enumerate(lengths)])
-        x = self.dense(x)
+        x = self.activation(self.dense_1(x))
+        x = self.activation(self.dense_2(x))
+        x = self.dense_3(x)
         return x, state
 
     def prepare_input(self, x, time, use_std):
