@@ -110,3 +110,49 @@ $ python run_experiments.py [CONFIG_1.toml] ([CONFIG_2.toml] [CONFIG_3.toml] ...
 
 ### Results
 **Disclaimer:** The data used for the following models is coming from only 3-4 laptops. We believe that results could be much better with a more diverse dataset, and with a bigger scale.
+
+**Model architecture:**
+
+![model architecture](img/model_architecture.png)
+
+The model was trained on 792 sessions, with random bounds `0.2-0.8`. Sessions were selected based on two thresholds:
+  1. Minimum of 10 data points per session
+  1. Minimum duration of 10 minutes
+
+The training was scheduled to run for 300 epochs or until the validation loss didn't improve for 30 epochs, whichever comes first. It took 108 epochs, and each sessions was repeat 5 times per epoch thanks to the [random data augmentation](#random-bounds).
+
+Progressive training was not used due to the limited number of sessions.
+
+The following features were used:
+  * `capacity`: Battery state of charge (0.0-1.0).
+  * `load_average_1`: CPU load average over the last minute.
+  * `cpu_temp`: CPU temperature.
+
+Along with the following values for context:
+  * `battery_status_*`: Wether the battery is charging or discharging.
+  * `os_*`: Type of OS
+  * `charge_full_design`: Battery full charge by design.
+
+The results showed a significant improvement over the [baseline](#goal) :
+|           | Baseline | AutoRegressive |
+|-----------|----------|----------------|
+| NLL + L1  | 12.73    | **5.56**       |
+
+
+Some examples of good predictions:
+
+![good1](img/good.png)
+
+![good2](img/good1.png)
+
+And some bad ones:
+
+![bad1](img/bad1.png)
+
+![bad2](img/bad2.png)
+
+## Conclusion
+
+This method shows encouraging results, which could be even better by working on the following ideas:
+  * Better weighting the L1 and NLL terms in the loss.
+  * More diverse data at a bigger scale.
