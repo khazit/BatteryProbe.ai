@@ -98,8 +98,8 @@ def plot_sample(dataset, target_col, n=1, model=None):
                 ci = outputs[idx, :labels_len[idx], 2*target_col + 1]
                 ax.fill_between(
                     date[inputs_len[idx]:time_len[idx]],
-                    (outputs[idx, :labels_len[idx], target_col] - 3*ci),
-                    (outputs[idx, :labels_len[idx], target_col] + 3*ci),
+                    (outputs[idx, :labels_len[idx], target_col] - ci),
+                    (outputs[idx, :labels_len[idx], target_col] + ci),
                     color='b', alpha=.1)
 
         date_fmt = '%d/%m %H:%M:%S'
