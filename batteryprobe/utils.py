@@ -23,10 +23,10 @@ def pad_and_pack(data):
 
 
 # pylint: disable=C0103
-def masked_l1(inputs, targets):
+def masked_l1(outputs, targets):
     """Masked L1 loss."""
-    mask = (inputs != -999)
-    return torch.abs(inputs - targets).sum() / mask.sum()
+    mask = (outputs != -999)
+    return torch.abs(outputs - targets).sum() / mask.sum()
 
 
 def masked_nllloss(outputs, targets):
@@ -40,6 +40,7 @@ def masked_nllloss(outputs, targets):
     stds = outputs[:, :, i:]
     stds = torch.clip(stds[stds != -999], min=0.01)
     # Targets
+    targets = targets[:, :, :i]
     targets = targets[targets != -999]
     # Norm dist
     norm_dist = torch.distributions.Normal(means, stds)
@@ -47,7 +48,7 @@ def masked_nllloss(outputs, targets):
 
 
 # pylint: disable=R0914
-def plot_sample(dataset, target_col, n=1, model=None, use_std=False):
+def plot_sample(dataset, target_col, n=1, model=None):
     """Plot n samples from a given dataset.
 
     Args:
@@ -92,7 +93,7 @@ def plot_sample(dataset, target_col, n=1, model=None, use_std=False):
                 outputs[idx, :labels_len[idx], target_col],
                 "k--", label="Predictions"
             )
-            if use_std:
+            if model.use_std:
                 # Confidence interval (99.7%)
                 ci = outputs[idx, :labels_len[idx], 2*target_col + 1]
                 ax.fill_between(
@@ -105,7 +106,8 @@ def plot_sample(dataset, target_col, n=1, model=None, use_std=False):
         date_formatter = mdate.DateFormatter(date_fmt)
         ax.xaxis.set_major_formatter(date_formatter)
         fig.autofmt_xdate()
-        plt.ylim([0, 2])
+        plt.ylim([0, 1.2])
+        plt.ylabel("SoC (%)")
         plt.legend()
         plt.show()
 
