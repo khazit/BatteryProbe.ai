@@ -8,7 +8,7 @@ from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence, pad_se
 from batteryprobe.utils import pad_and_pack
 
 
-# pylint: disable=C0103
+# pylint: disable=C0103, R0902
 class Baseline(nn.Module):
     """Baseline model.
 
@@ -47,7 +47,6 @@ class Baseline(nn.Module):
                 * time[i, len_x[i]:len_time[i]] + beta[i]
             if self.use_std:
                 res[i, :len_context[i], 2 * self.target_col + 1] = 0
-
         # Pack sequences
         res = pack_padded_sequence(res,
             len_context, batch_first=True, enforce_sorted=False)
@@ -102,7 +101,8 @@ class AutoRegressive(nn.Module):
         self.params = params
         super().__init__()
         # pylint: disable=C0301
-        if params["use_std"]:
+        self.use_std = params["use_std"]
+        if self.use_std:
             k = 2
         else:
             k = 1
@@ -110,7 +110,10 @@ class AutoRegressive(nn.Module):
         self.out_size = k * len(self.params["features"])  # Outputs = Means + Stds
         self.t2v = Time2Vec(k=params["t2v_k"])
         self.lstm = nn.LSTM(self.in_size, 64, num_layers=params["lstm_layers"], batch_first=True)
-        self.dense = nn.Linear(64, self.out_size)
+        self.activation = nn.ReLU()
+        self.dense_1 = nn.Linear(64, 32)
+        self.dense_2 = nn.Linear(32, 16)
+        self.dense_3 = nn.Linear(16, self.out_size)
 
     # pylint: disable=W0613
     def forward(self, x, time, context):
@@ -122,7 +125,7 @@ class AutoRegressive(nn.Module):
             context (torch.nn.utils.rnn.PackedSequence): Context
         """
         # Embed time and add it to inputs
-        x, time_embedding = self.prepare_input(x, time, self.params["use_std"])
+        x, time_embedding = self.prepare_input(x, time)
 
         # Pass into warmup
         x, warmup_state = self._warmup(x)
@@ -154,7 +157,9 @@ class AutoRegressive(nn.Module):
                     axis=-1
                 )[None, None, :]
                 x, state = self.lstm(in_tensor, state)
-                x = self.dense(x)
+                x = self.activation(self.dense_1(x))
+                x = self.activation(self.dense_2(x))
+                x = self.dense_3(x)
                 timestamps.append(x)
             batch.append(torch.cat(timestamps, 1)[0])
 
@@ -165,10 +170,12 @@ class AutoRegressive(nn.Module):
         x, state = self.lstm(x)
         x, lengths = pad_packed_sequence(x, batch_first=True, padding_value=-999)
         x = torch.stack([x[i, length - 1] for i, length in enumerate(lengths)])
-        x = self.dense(x)
+        x = self.activation(self.dense_1(x))
+        x = self.activation(self.dense_2(x))
+        x = self.dense_3(x)
         return x, state
 
-    def prepare_input(self, x, time, use_std):
+    def prepare_input(self, x, time):
         """ Prepare input by adding time embedding and std values to input feature"""
         time_embedding = self.embed_time(x, time)
         x, x_len = pad_packed_sequence(x,
@@ -179,7 +186,7 @@ class AutoRegressive(nn.Module):
             batch_first=True, padding_value=-999
         )
         # Add std and time embeddings to inputs
-        if use_std:
+        if self.use_std:
             x = torch.cat(
                 (
                     x,  # inputs

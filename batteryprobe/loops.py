@@ -104,7 +104,7 @@ def train(model, datasets, params):
     logging.info("Training done.")
 
 
-def evaluate(model, dataset, target_col, use_std=False):
+def evaluate(model, dataset, target_col):
     """Evaluate a model on a dataset given a target feature.
 
     Args:
@@ -115,7 +115,7 @@ def evaluate(model, dataset, target_col, use_std=False):
     Returns:
         (int) L1 score.
     """
-    if use_std:
+    if model.use_std:
         loss = masked_nllloss
     else:
         loss = masked_l1
@@ -132,9 +132,10 @@ def evaluate(model, dataset, target_col, use_std=False):
                     batch_first=True, padding_value=-999)
 
             # Compute loss for this batch
+            cols = [target_col, 2*target_col+1] if model.use_std else target_col
             running_loss += loss(
-                pad_outputs[:, :, target_col],
-                pad_labels[:, :, target_col]
+                pad_outputs[:, :, cols],
+                pad_labels[:, :, cols]
             )
             pbar.set_description(f"Loss {running_loss / (i+1):.5f}")
     return running_loss.numpy() / (i+1)
